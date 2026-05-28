@@ -26,7 +26,19 @@ const KEYS_FILE      = path.join(__dirname, 'keys.json');
    MIDDLEWARE
    ============================================================ */
 app.use(cors({
-  origin: '*', // lock this down to your domain after deploying e.g. 'https://yourdomain.com'
+  origin: function(origin, callback) {
+    const allowed = [
+      'https://xpxoriginals100.netlify.app',
+      'https://xpx.netlify.app',
+      'http://localhost',
+      'http://127.0.0.1',
+    ];
+    if (!origin || allowed.some(a => origin.startsWith(a))) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   methods: ['GET', 'POST'],
 }));
 app.use(express.json());
