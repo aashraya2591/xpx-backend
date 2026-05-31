@@ -4,6 +4,11 @@
     "unlimited": true,
     "note": "Owner master key — never expires, never marked used"
   },
+  "trialToken": {
+    "key": "b7Xq9LmP2vRt8KzY4nD1cW5sF0hJ6uA",
+    "unlimited": true,
+    "note": "Cyberpunk 2077 24hr trial token — unlimited use, never expires"
+  },
   "keys": [
     { "key": "X9F2-KL7Q-8MNP-3VTR", "used": false, "usedAt": null, "usedByIP": null },
     { "key": "Z4JW-1QXE-7LPA-9NMC", "used": false, "usedAt": null, "usedByIP": null },
