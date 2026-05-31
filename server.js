@@ -31,6 +31,8 @@ const ADMIN_PASSWORD   = process.env.ADMIN_PASSWORD || 'XPXadmin@2026';
 const KEYS_FILE        = path.join(__dirname, 'keys.json');
 const EXE_FILE         = path.join(__dirname, '100GamesBundleXPX_Setup.exe');
 const EXE_FILENAME     = '100GamesBundleXPX_Setup.exe';
+const TRIAL_EXE_FILE   = path.join(__dirname, 'CyberpunkTrialXPX_Setup.exe');
+const TRIAL_EXE_NAME   = 'CyberpunkTrialXPX_Setup.exe';
 
 // Session token expires in 15 minutes
 const SESSION_TTL_MS   = 15 * 60 * 1000;
@@ -338,7 +340,8 @@ app.get('/admin', (req, res) => {
   const keys    = data.keys;
   const p1      = data.phase1Tickets;
   const p2      = data.phase2Tickets;
-  const exeExists = fs.existsSync(EXE_FILE);
+  const exeExists      = fs.existsSync(EXE_FILE);
+  const trialExeExists = fs.existsSync(TRIAL_EXE_FILE);
 
   const keyRows = keys.map((k,i) => `
     <tr style="background:${k.used?'rgba(224,92,75,0.08)':'rgba(57,217,138,0.05)'}">
@@ -395,9 +398,15 @@ app.get('/admin', (req, res) => {
   <div class="exe-box">
     📦 <strong>Bundle Launcher:</strong> ${exeExists ? '✅ File present on server — downloads working' : '❌ FILE MISSING — upload 100GamesBundleXPX_Setup.exe to the repo'}
   </div>
+  <div class="exe-box" style="background:${trialExeExists?'rgba(57,217,138,0.06)':'rgba(224,92,75,0.06)'};border-color:${trialExeExists?'rgba(57,217,138,0.25)':'rgba(224,92,75,0.25)'};">
+    🎮 <strong>Cyberpunk Trial Launcher:</strong> ${trialExeExists ? '✅ File present on server — trial downloads working' : '❌ FILE MISSING — upload CyberpunkTrialXPX_Setup.exe to the repo'}
+  </div>
 
   <div class="master-box">
     🔑 <strong>Master Key:</strong> ${data.master.key} &nbsp;|&nbsp; <strong style="color:#39d98a">Unlimited · Never Expires</strong>
+  </div>
+  <div class="master-box" style="border-color:rgba(74,240,255,0.25);background:rgba(74,240,255,0.04);">
+    🎮 <strong style="color:#4af0ff">Trial Token:</strong> ${data.trialToken.key} &nbsp;|&nbsp; <strong style="color:#39d98a">Unlimited · Never Expires · Cyberpunk 24hr Trial</strong>
   </div>
 
   <div class="stats">
@@ -421,6 +430,87 @@ app.get('/admin', (req, res) => {
   <table><thead><tr><th>#</th><th>Ticket</th><th>Status</th><th>Used At</th><th>IP</th></tr></thead><tbody>${p2Rows}</tbody></table>
 
   </body></html>`);
+});
+
+/* ============================================================
+   POST /api/verify-trial-token
+   Verifies Cyberpunk trial token — unlimited use, never expires
+   ============================================================ */
+app.post('/api/verify-trial-token', (req, res) => {
+  const { token } = req.body;
+  if (!token || typeof token !== 'string' || !token.trim()) {
+    return res.json({ success: false, message: 'No token provided.' });
+  }
+
+  const ip   = getIP(req);
+  const data = readKeys();
+
+  if (token.trim() !== data.trialToken.key) {
+    console.log(`[${new Date().toISOString()}] INVALID TRIAL TOKEN from ${ip}`);
+    return res.json({ success: false, message: 'Invalid trial token. Get your free token from the XPX Discord #purchase channel.' });
+  }
+
+  // Generate a one-time download token for the trial exe
+  const dlToken = genToken('trial');
+  data.downloadTokens[dlToken] = { createdAt: Date.now(), expiresAt: Date.now() + DOWNLOAD_TTL_MS, trial: true };
+  writeKeys(data);
+
+  console.log(`[${new Date().toISOString()}] TRIAL TOKEN used from ${ip} → trial dl token issued`);
+  return res.json({ success: true, downloadToken: dlToken, message: 'Trial token verified. Download starting.' });
+});
+
+/* ============================================================
+   GET /api/download-trial?token=DOWNLOAD_TOKEN
+   Serves the Cyberpunk trial .exe — burns token after use
+   ============================================================ */
+app.get('/api/download-trial', (req, res) => {
+  const { token } = req.query;
+  if (!token) return res.status(403).json({ error: 'No download token provided.' });
+
+  const data = readKeys();
+  const dl   = data.downloadTokens[token];
+
+  if (!dl || !dl.trial) {
+    return res.status(403).send(`
+      <html><head><title>Access Denied</title></head>
+      <body style="background:#06060a;color:#e05c4b;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;">
+        <div style="font-size:48px;">⛔</div>
+        <div style="font-size:18px;letter-spacing:2px;">INVALID DOWNLOAD TOKEN</div>
+        <div style="font-size:12px;color:#6b6878;">This link is invalid or has already been used.</div>
+        <a href="javascript:history.back()" style="color:#c9a84c;font-size:12px;margin-top:8px;">← Go Back</a>
+      </body></html>
+    `);
+  }
+
+  if (dl.expiresAt < Date.now()) {
+    delete data.downloadTokens[token];
+    writeKeys(data);
+    return res.status(403).send(`
+      <html><head><title>Link Expired</title></head>
+      <body style="background:#06060a;color:#e05c4b;font-family:monospace;display:flex;align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;">
+        <div style="font-size:48px;">⏰</div>
+        <div style="font-size:18px;letter-spacing:2px;">DOWNLOAD LINK EXPIRED</div>
+        <div style="font-size:12px;color:#6b6878;">Please go back and verify your token again.</div>
+        <a href="javascript:history.back()" style="color:#c9a84c;font-size:12px;margin-top:8px;">← Go Back</a>
+      </body></html>
+    `);
+  }
+
+  if (!fs.existsSync(TRIAL_EXE_FILE)) {
+    return res.status(500).json({ error: 'Trial installer not found on server. Contact support.' });
+  }
+
+  // Burn token
+  delete data.downloadTokens[token];
+  writeKeys(data);
+
+  const ip = getIP(req);
+  console.log(`[${new Date().toISOString()}] TRIAL DOWNLOAD served to ${ip}`);
+
+  res.setHeader('Content-Disposition', `attachment; filename="${TRIAL_EXE_NAME}"`);
+  res.setHeader('Content-Type', 'application/octet-stream');
+  res.setHeader('Content-Length', fs.statSync(TRIAL_EXE_FILE).size);
+  fs.createReadStream(TRIAL_EXE_FILE).pipe(res);
 });
 
 /* ============================================================
