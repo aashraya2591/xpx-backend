@@ -31,8 +31,8 @@ const ADMIN_PASSWORD   = process.env.ADMIN_PASSWORD || 'XPXadmin@2026';
 const KEYS_FILE        = path.join(__dirname, 'keys.json');
 const EXE_FILE         = path.join(__dirname, '100GamesBundleXPX_Setup.exe');
 const EXE_FILENAME     = '100GamesBundleXPX_Setup.exe';
-const TRIAL_EXE_FILE   = path.join(__dirname, 'CyberpunkTrialXPX_Setup.exe');
-const TRIAL_EXE_NAME   = 'CyberpunkTrialXPX_Setup.exe';
+const TRIAL_EXE_FILE   = path.join(__dirname, 'CyberpunkTrial_Setup.exe');
+const TRIAL_EXE_NAME   = 'CyberpunkTrial_Setup.exe';
 
 // Session token expires in 15 minutes
 const SESSION_TTL_MS   = 15 * 60 * 1000;
