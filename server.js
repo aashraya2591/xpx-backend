@@ -45,7 +45,7 @@ const DOWNLOAD_TTL_MS  = 5  * 60 * 1000;
 app.use(cors({
   origin: function(origin, callback) {
     const allowed = [
-      'https://xpxoriginals100.netlify.app',
+      'https://xpxbundle100.netlify.app',
       'https://xpx.netlify.app',
       'http://localhost',
       'http://127.0.0.1',
