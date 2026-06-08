@@ -20,7 +20,7 @@ const fs           = require('fs');
 const path         = require('path');
 const crypto       = require('crypto');
 const multer       = require('multer');
-const nodemailer   = require('nodemailer');
+// Using Resend HTTP API (no nodemailer — Render free blocks SMTP)
 
 const app  = express();
 const PORT = process.env.PORT || 3000;
@@ -35,8 +35,7 @@ const EXE_FILENAME     = '100GamesBundleXPX_Setup.exe';
 const TRIAL_EXE_FILE   = path.join(__dirname, 'CyberpunkTrial_Setup.exe');
 const TRIAL_EXE_NAME   = 'CyberpunkTrial_Setup.exe';
 
-const GMAIL_USER       = process.env.GMAIL_USER;
-const GMAIL_PASS       = process.env.GMAIL_PASS;
+const RESEND_API_KEY   = process.env.RESEND_API_KEY;
 const ADMIN_EMAIL      = 'gamingxpx941@gmail.com';
 
 // Session token expires in 15 minutes
@@ -45,18 +44,23 @@ const SESSION_TTL_MS   = 15 * 60 * 1000;
 const DOWNLOAD_TTL_MS  = 5  * 60 * 1000;
 
 /* ============================================================
-   NODEMAILER TRANSPORTER
+   RESEND EMAIL HELPER (HTTPS — no SMTP, works on Render free)
    ============================================================ */
-const transporter = nodemailer.createTransport({
-  service: 'gmail',
-  auth: {
-    user: GMAIL_USER,
-    pass: GMAIL_PASS,
-  },
-  connectionTimeout: 10000,
-  greetingTimeout: 10000,
-  socketTimeout: 30000,
-});
+async function sendEmail({ to, subject, html, attachments = [] }) {
+  const body = { from: 'XPX Gaming <onboarding@resend.dev>', to, subject, html };
+  if (attachments.length) body.attachments = attachments;
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + RESEND_API_KEY,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error('Resend error: ' + JSON.stringify(data));
+  return data;
+}
 
 /* ============================================================
    MULTER — memory storage (screenshot stored in RAM, attached to email)
@@ -179,8 +183,7 @@ app.post('/api/submit-order', upload.single('screenshot'), async (req, res) => {
 
     // Email admin with screenshot attached
     const screenshotExt = req.file.mimetype === 'image/png' ? 'png' : 'jpg';
-    await transporter.sendMail({
-      from: `"XPX Gaming Orders" <${GMAIL_USER}>`,
+    await sendEmail({
       to: ADMIN_EMAIL,
       subject: `[NEW ORDER] ${orderId} — ${name}`,
       html: `
@@ -194,14 +197,13 @@ app.post('/api/submit-order', upload.single('screenshot'), async (req, res) => {
             <tr><td style="color:#9591a0;padding:6px 12px 6px 0;">Submitted At</td><td style="color:#eeeaf0;">${new Date().toLocaleString()}</td></tr>
             <tr><td style="color:#9591a0;padding:6px 12px 6px 0;">IP Address</td><td style="color:#eeeaf0;">${ip}</td></tr>
           </table>
-          <p style="margin-top:20px;color:#9591a0;">Payment screenshot is attached. Go to the <strong style="color:#e8c97a;">Admin Dashboard</strong> to verify and send the redeem key.</p>
+          <p style="margin-top:20px;color:#9591a0;">Payment screenshot is attached (base64). Go to the <strong style="color:#e8c97a;">Admin Dashboard</strong> to verify and send the redeem key.</p>
         </div>
       `,
       attachments: [
         {
           filename: `payment_${orderId}.${screenshotExt}`,
-          content: req.file.buffer,
-          contentType: req.file.mimetype,
+          content: req.file.buffer.toString('base64'),
         },
       ],
     });
@@ -262,8 +264,7 @@ app.post('/api/verify-order', async (req, res) => {
     writeKeys(data);
 
     // Email customer their redeem key
-    await transporter.sendMail({
-      from: `"XPX Gaming Originals" <${GMAIL_USER}>`,
+    await sendEmail({
       to: order.email,
       subject: `Your XPX Gaming Redeem Key — ${orderId}`,
       html: `
@@ -340,8 +341,7 @@ app.post('/api/reject-order', async (req, res) => {
     writeKeys(data);
 
     // Email customer about rejection
-    await transporter.sendMail({
-      from: `"XPX Gaming Originals" <${GMAIL_USER}>`,
+    await sendEmail({
       to: order.email,
       subject: `XPX Gaming — Order Update (${orderId})`,
       html: `
