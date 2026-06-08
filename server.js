@@ -729,10 +729,14 @@ app.get('/admin', (req, res) => {
 });
 
 /* ============================================================
-   Health check
+   Health check + keep-alive ping
    ============================================================ */
 app.get('/', (req, res) => {
   res.json({ status: 'online', service: 'XPX Gaming Key Verification API', version: '3.0.0' });
+});
+
+app.get('/ping', (req, res) => {
+  res.json({ status: 'ok', ts: Date.now() });
 });
 
 /* ============================================================
