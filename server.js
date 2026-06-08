@@ -53,6 +53,9 @@ const transporter = nodemailer.createTransport({
     user: GMAIL_USER,
     pass: GMAIL_PASS,
   },
+  connectionTimeout: 10000,
+  greetingTimeout: 10000,
+  socketTimeout: 30000,
 });
 
 /* ============================================================
