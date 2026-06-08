@@ -291,19 +291,17 @@ app.post('/api/verify-order', async (req, res) => {
       return res.json({ success: false, message: `Order already verified. Key sent: ${order.assignedKey}` });
     }
 
-    // Pick first unused redeem key
-    const keyIdx = data.keys.findIndex(k => !k.used);
+    // Pick first unused and unreserved redeem key
+    const keyIdx = data.keys.findIndex(k => !k.used && !k.reserved);
     if (keyIdx === -1) {
       return res.json({ success: false, message: 'No unused redeem keys available! Add more keys to keys.json.' });
     }
 
     const assignedKey = data.keys[keyIdx].key;
 
-    // Mark key as used
-    data.keys[keyIdx].used      = true;
-    data.keys[keyIdx].usedAt    = new Date().toISOString();
-    data.keys[keyIdx].usedByIP  = order.ip;
-    data.keys[keyIdx].orderId   = orderId;
+    // Reserve key for this order (NOT marked as used yet — only used when customer redeems on website)
+    data.keys[keyIdx].reserved   = true;
+    data.keys[keyIdx].orderId    = orderId;
 
     // Update order status
     data.orders[orderIdx].status      = 'verified';
@@ -454,10 +452,11 @@ app.post('/api/verify-key', (req, res) => {
     return res.json({ success: false, message: 'This key has already been redeemed. Please contact support on Discord.' });
   }
 
-  // Mark used + create session token
-  data.keys[idx].used     = true;
-  data.keys[idx].usedAt   = new Date().toISOString();
-  data.keys[idx].usedByIP = ip;
+  // Mark used + clear reservation + create session token
+  data.keys[idx].used      = true;
+  data.keys[idx].usedAt    = new Date().toISOString();
+  data.keys[idx].usedByIP  = ip;
+  data.keys[idx].reserved  = false;
   const token = genToken('sess');
   data.sessionTokens[token] = { createdAt: Date.now(), expiresAt: Date.now() + SESSION_TTL_MS, master: false };
   writeKeys(data);
