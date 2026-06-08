@@ -133,6 +133,7 @@ app.use(cors({
       'https://xpxoriginals100.netlify.app',
       'https://xpxbundle100.netlify.app',
       'https://xpx.netlify.app',
+      'https://xpx-backend-adci.onrender.com',
       'http://localhost',
       'http://127.0.0.1',
     ];
