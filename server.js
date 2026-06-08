@@ -35,8 +35,11 @@ const EXE_FILENAME     = '100GamesBundleXPX_Setup.exe';
 const TRIAL_EXE_FILE   = path.join(__dirname, 'CyberpunkTrial_Setup.exe');
 const TRIAL_EXE_NAME   = 'CyberpunkTrial_Setup.exe';
 
-const RESEND_API_KEY   = process.env.RESEND_API_KEY;
-const ADMIN_EMAIL      = 'gamingxpx941@gmail.com';
+const GMAIL_CLIENT_ID     = process.env.GMAIL_CLIENT_ID;
+const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
+const GMAIL_REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN;
+const GMAIL_USER          = process.env.GMAIL_USER;
+const ADMIN_EMAIL         = 'gamingxpx941@gmail.com';
 
 // Session token expires in 15 minutes
 const SESSION_TTL_MS   = 15 * 60 * 1000;
@@ -44,21 +47,65 @@ const SESSION_TTL_MS   = 15 * 60 * 1000;
 const DOWNLOAD_TTL_MS  = 5  * 60 * 1000;
 
 /* ============================================================
-   RESEND EMAIL HELPER (HTTPS — no SMTP, works on Render free)
+   GMAIL OAUTH2 EMAIL HELPER (HTTPS — no SMTP, works on Render free)
    ============================================================ */
-async function sendEmail({ to, subject, html, attachments = [] }) {
-  const body = { from: 'XPX Gaming <onboarding@resend.dev>', to, subject, html };
-  if (attachments.length) body.attachments = attachments;
-  const res = await fetch('https://api.resend.com/emails', {
+async function getAccessToken() {
+  const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
-    headers: {
-      'Authorization': 'Bearer ' + RESEND_API_KEY,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      client_id:     GMAIL_CLIENT_ID,
+      client_secret: GMAIL_CLIENT_SECRET,
+      refresh_token: GMAIL_REFRESH_TOKEN,
+      grant_type:    'refresh_token',
+    }),
   });
   const data = await res.json();
-  if (!res.ok) throw new Error('Resend error: ' + JSON.stringify(data));
+  if (!data.access_token) throw new Error('Failed to get access token: ' + JSON.stringify(data));
+  return data.access_token;
+}
+
+async function sendEmail({ to, subject, html, attachments = [] }) {
+  const accessToken = await getAccessToken();
+
+  // Build MIME message
+  let mime = [
+    'MIME-Version: 1.0',
+    `From: XPX Gaming <${GMAIL_USER}>`,
+    `To: ${to}`,
+    `Subject: ${subject}`,
+  ];
+
+  if (attachments.length) {
+    const boundary = 'XPX_BOUNDARY_' + Date.now();
+    mime.push(`Content-Type: multipart/mixed; boundary="${boundary}"`, '', `--${boundary}`);
+    mime.push('Content-Type: text/html; charset=utf-8', '', html);
+    for (const att of attachments) {
+      mime.push('', `--${boundary}`);
+      mime.push(`Content-Type: application/octet-stream`);
+      mime.push(`Content-Transfer-Encoding: base64`);
+      mime.push(`Content-Disposition: attachment; filename="${att.filename}"`, '');
+      mime.push(att.content);
+    }
+    mime.push('', `--${boundary}--`);
+  } else {
+    mime.push('Content-Type: text/html; charset=utf-8', '', html);
+  }
+
+  const raw = Buffer.from(mime.join('\r\n'))
+    .toString('base64')
+    .replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+
+  const res = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer ' + accessToken,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ raw }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error('Gmail API error: ' + JSON.stringify(data));
   return data;
 }
 
