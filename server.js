@@ -452,17 +452,17 @@ app.post('/api/verify-key', (req, res) => {
     return res.json({ success: false, message: 'This key has already been redeemed. Please contact support on Discord.' });
   }
 
-  // Mark used + clear reservation + create session token
+  // Mark used + clear reservation + issue download token
   data.keys[idx].used      = true;
   data.keys[idx].usedAt    = new Date().toISOString();
   data.keys[idx].usedByIP  = ip;
   data.keys[idx].reserved  = false;
-  const token = genToken('sess');
-  data.sessionTokens[token] = { createdAt: Date.now(), expiresAt: Date.now() + SESSION_TTL_MS, master: false };
+  const dlToken = genToken('dl');
+  data.downloadTokens[dlToken] = { createdAt: Date.now(), expiresAt: Date.now() + DOWNLOAD_TTL_MS, trial: false };
   writeKeys(data);
 
-  console.log(`[${new Date().toISOString()}] KEY REDEEMED: "${trimmed}" from ${ip} → session ${token.slice(0,16)}...`);
-  return res.json({ success: true, master: false, sessionToken: token, message: 'Key verified. Access granted.' });
+  console.log(`[${new Date().toISOString()}] KEY REDEEMED: "${trimmed}" from ${ip} → download token issued`);
+  return res.json({ success: true, downloadToken: dlToken, message: 'Key verified. Download starting.' });
 });
 
 /* ============================================================
