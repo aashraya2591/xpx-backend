@@ -30,8 +30,8 @@ const PORT = process.env.PORT || 3000;
    ============================================================ */
 const ADMIN_PASSWORD   = process.env.ADMIN_PASSWORD || 'XPXadmin@2026';
 const KEYS_FILE        = path.join(__dirname, 'keys.json');
-const EXE_FILE         = path.join(__dirname, '100GamesBundleXPX_Setup.exe');
-const EXE_FILENAME     = '100GamesBundleXPX_Setup.exe';
+const EXE_FILE         = path.join(__dirname, 'XPX 100+ Games Bundle Package.zip');
+const EXE_FILENAME     = 'XPX 100+ Games Bundle Package.zip';
 const TRIAL_EXE_FILE   = path.join(__dirname, 'CyberpunkTrial_Setup.exe');
 const TRIAL_EXE_NAME   = 'CyberpunkTrial_Setup.exe';
 
@@ -556,6 +556,7 @@ app.get('/api/download', (req, res) => {
   console.log(`[${new Date().toISOString()}] DOWNLOAD served to ${ip}`);
 
   res.setHeader('Content-Disposition', `attachment; filename="${EXE_FILENAME}"`);
+  res.setHeader('Content-Type', 'application/zip');
   res.setHeader('Content-Type', 'application/octet-stream');
   res.setHeader('Content-Length', fs.statSync(EXE_FILE).size);
   fs.createReadStream(EXE_FILE).pipe(res);
@@ -795,5 +796,5 @@ app.get('/ping', (req, res) => {
 app.listen(PORT, () => {
   console.log(`\n🎮 XPX Gaming Backend v3.0 running on port ${PORT}`);
   console.log(`   Admin: http://localhost:${PORT}/admin?password=${ADMIN_PASSWORD}`);
-  console.log(`   EXE file: ${fs.existsSync(EXE_FILE) ? '✅ present' : '❌ MISSING'}\n`);
+  console.log(`   Bundle ZIP: ${fs.existsSync(EXE_FILE) ? '✅ present' : '❌ MISSING'}\n`);
 });
