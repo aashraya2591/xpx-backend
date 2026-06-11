@@ -39,7 +39,7 @@ const GMAIL_CLIENT_ID     = process.env.GMAIL_CLIENT_ID;
 const GMAIL_CLIENT_SECRET = process.env.GMAIL_CLIENT_SECRET;
 const GMAIL_REFRESH_TOKEN = process.env.GMAIL_REFRESH_TOKEN;
 const GMAIL_USER          = process.env.GMAIL_USER;
-const ADMIN_EMAIL         = 'gamingxpx941@gmail.com';
+const ADMIN_EMAIL         = 'xpxorder@gmail.com';
 
 // Session token expires in 15 minutes
 const SESSION_TTL_MS   = 15 * 60 * 1000;
